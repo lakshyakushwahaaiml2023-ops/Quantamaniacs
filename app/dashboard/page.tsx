@@ -15,6 +15,7 @@ import {
   BoltIcon,
   ArrowTrendingUpIcon,
   ExclamationCircleIcon,
+  ArchiveBoxIcon,
 } from "@heroicons/react/24/outline";
 import {
   CheckCircleIcon as CheckCircleSolid,
@@ -167,14 +168,21 @@ function ProfileHeader({ profile, totalTasks, completedTasks, achievementCount }
 
         {/* Quick actions */}
         <div className="flex sm:flex-col gap-2 flex-shrink-0">
-          <button className="px-4 py-2 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-bold hover:bg-cyan-500/20 transition-colors whitespace-nowrap">
-            Edit Profile
-          </button>
           <button className="px-4 py-2 rounded-xl bg-slate-800/60 border border-slate-700/40 text-slate-300 text-xs font-bold hover:bg-slate-800 transition-colors whitespace-nowrap">
             View Archive
           </button>
         </div>
       </div>
+      
+      {/* Absolute Vault Button pushed sideways */}
+      <Link 
+        href="/dashboard/archive" 
+        className="absolute top-5 right-5 sm:top-6 sm:right-6 inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/10 hover:bg-slate-900 border border-indigo-500/30 hover:border-indigo-400 rounded-lg text-[10px] font-black uppercase tracking-widest text-indigo-400 transition-all shadow-md group"
+        title="View your archived tasks and AI histories"
+      >
+        <ArchiveBoxIcon className="w-4 h-4 group-hover:scale-110 transition-transform" />
+        <span className="hidden sm:inline">Memory Vault</span>
+      </Link>
     </Card>
   );
 }
@@ -183,11 +191,6 @@ function ProfileHeader({ profile, totalTasks, completedTasks, achievementCount }
 
 function Highlights() {
   const items = [
-    { label: "DSA Path", emoji: "🔍" },
-    { label: "Quiz Wins", emoji: "🏆" },
-    { label: "Milestones", emoji: "📍" },
-    { label: "Bookmarks", emoji: "🔖" },
-    { label: "Certificates", emoji: "🎓" },
     { label: "New", emoji: "+" },
   ];
   return (
@@ -268,6 +271,55 @@ function TodayTasks({ profile }) {
           ))}
         </ul>
       )}
+    </Card>
+  );
+}
+
+// ─── Skill Analysis Tasks ─────────────────────────────────────────────────────
+
+function SkillAnalysisTasks({ profile, updateProfile }) {
+  if (!profile.skillTasks || profile.skillTasks.length === 0) return null;
+
+  const toggle = (id) => {
+    updateProfile({
+      skillTasks: profile.skillTasks.map(t => 
+        t.id === id ? { ...t, isCompleted: !t.isCompleted } : t
+      )
+    });
+  };
+
+  return (
+    <Card glow className="border-cyan-500/20 bg-gradient-to-br from-cyan-500/5 to-slate-900/50">
+      <SectionHeading action="Manage">AI Roadmap Directives</SectionHeading>
+      <ul className="space-y-2">
+        {profile.skillTasks.map((task) => (
+          <li
+            key={task.id}
+            onClick={() => toggle(task.id)}
+            className={`
+              flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-150
+              ${task.isCompleted
+                ? "bg-emerald-500/5 border border-emerald-500/10"
+                : "bg-slate-800/60 border border-slate-700/50 hover:border-cyan-500/30 shadow-[0_4px_12px_rgba(0,0,0,0.1)]"}
+            `}
+          >
+            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors
+              ${task.isCompleted ? "border-emerald-500 bg-emerald-500" : "border-slate-500"}`}>
+              {task.isCompleted && <CheckCircleSolid className="w-3 h-3 text-white" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className={`text-sm font-bold truncate ${task.isCompleted ? "line-through text-slate-500" : "text-cyan-50"}`}>
+                {task.title}
+              </p>
+              <div className="flex gap-2 items-center mt-0.5">
+                <Badge color={task.type === "Technical" ? "pink" : "amber"}>{task.type}</Badge>
+                <span className="text-[10px] text-slate-400">{task.duration}</span>
+              </div>
+            </div>
+            <BoltIcon className={`w-4 h-4 flex-shrink-0 ${task.isCompleted ? "text-slate-600" : "text-cyan-400 animate-pulse"}`} />
+          </li>
+        ))}
+      </ul>
     </Card>
   );
 }
@@ -587,7 +639,7 @@ function SkillStats() {
 // No sidebar is included here — your layout already provides one.
 
 export default function InstagramStyleProfile() {
-  const { profile } = useUser();
+  const { profile, updateProfile } = useUser();
 
   const totalTasks = profile.events.flatMap(e => calculateEventSchedule(e)).length;
   const completedTasks = profile.events.flatMap(e => e.completedTasks || []).length;
@@ -609,6 +661,7 @@ export default function InstagramStyleProfile() {
         <Highlights />
         <MotivationCard />
         <TodayTasks profile={profile} />
+        <SkillAnalysisTasks profile={profile} updateProfile={updateProfile} />
         <StudyPlansGrid profile={profile} />
         <RecommendedTopics />
         <WeakSubjects />

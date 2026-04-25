@@ -48,9 +48,15 @@ INPUT CONTEXT:
 - CURRENT LOCAL TIME: ${new Date().toLocaleTimeString()} (Use this to logically place a 'Food Break' if the session spans normal eating hours).
 - EARLY COMPLETION STATUS: ${isEarlyCompletion ? "YES - The student has finished today's tasks early and is ready for the NEXT subset of their roadmap." : "NO"}
 
+--- REAL-WORLD CONSTRAINTS ---
+- DAILY TIME LIMIT: ${profile.studyTime || "2 Hours"}. NEVER schedule total daily task hours exceeding this limit.
+- JOB/BURNOUT STATUS: ${profile.workingStatus?.includes("Yes") ? "Working Student. Keep tasks highly efficient, skip fluff!" : "Full-Time Student"}
+- INTERNET RELIABILITY: ${profile.access || "Good"}. If 'Limited' or 'Low', schedule heavy offline textbook reading.
+- RESOURCE ACCESS: ${profile.resourcesAccess || "Unknown"}. If 'Self Study', provide more detailed step-by-step topics.
+
 OUTPUT STRICT JSON REGARDLESS OF ANYTHING ELSE:
 {
-  "strategy": "Explain overall approach based on time and exam pressure",
+  "strategy": "Explain overall approach. You MUST specifically reference 1-2 major keywords or chapters found in the Syllabus provided to show depth of context.",
   "today_tasks": [
     {
       "task": "string",
@@ -94,6 +100,8 @@ RULES:
 - You MUST NEVER output two 'Rest' or 'Meal' type tasks in a row.
 - Name all meal-related tasks exactly "Food Break" (do not use specific names like Breakfast, Lunch, or Dinner).
 - ROADMAP RULE: Generate a multi-day plan covering EXACTLY the next ${targetDays} days. Do NOT output more days than necessary!
+
+NEVER USE GENERIC ADVICE. Every sentence in your "strategy" and "warning" fields must feel like it was written by a personal tutor who has deeply analyzed the specific terms and chapters in the provided Syllabus. You must integrate 2-3 specific keywords or topics from the syllabus into your explanation to prove you are analyzing their content. If the syllabus is very short, derive keywords from the Exam Name: "${event.name}".
 `;
 
     if (chatSnapshot && chatSnapshot.length > 0) {

@@ -40,11 +40,13 @@ export type UserProfile = {
   weakTopics: string[];
   recommendedNextStep: string;
   events: Event[];
+  careerRoadmap?: any;
+  skillTasks?: any[];
   chatHistorySnapshot: any[];
   activityLogs: any[];
 };
 
-const defaultProfile: UserProfile = {
+export const defaultProfile: UserProfile = {
   isLoggedIn: false,
   name: "",
   studyLevel: "",
@@ -68,6 +70,8 @@ const defaultProfile: UserProfile = {
   weakTopics: [],
   recommendedNextStep: "Complete your onboarding",
   events: [],
+  careerRoadmap: null,
+  skillTasks: [],
   chatHistorySnapshot: [],
   activityLogs: [],
 };
@@ -93,16 +97,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile>(defaultProfile);
   const [isMounted, setIsMounted] = useState(false);
 
-  // Load from session storage on mount
+  // Load from persistent storage on mount
   useEffect(() => {
     setIsMounted(true);
     try {
-      // Clear out any old persistent data from previous app versions
-      if (localStorage.getItem("studysmart_user")) {
-        localStorage.removeItem("studysmart_user");
-      }
-      
-      const stored = sessionStorage.getItem("studysmart_user");
+      const stored = localStorage.getItem("studysmart_user");
       if (stored) {
         setProfile({ ...defaultProfile, ...JSON.parse(stored) });
       }
@@ -111,34 +110,45 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Save to session storage when profile changes
+  // Save to persistent storage when profile changes
   useEffect(() => {
     if (isMounted) {
       try {
-        sessionStorage.setItem("studysmart_user", JSON.stringify(profile));
+        localStorage.setItem("studysmart_user", JSON.stringify(profile));
       } catch (e) {
         console.error("Failed to stringify user profile", e);
       }
     }
   }, [profile, isMounted]);
 
-  // Sync with MongoDB (Background)
+  // Sync with PostgreSQL (Background)
   useEffect(() => {
     if (isMounted && profile.isLoggedIn && profile.name) {
       const syncTimeout = setTimeout(async () => {
         try {
-          console.log("=> Syncing with MongoDB...");
+          console.log("=> Syncing with PostgreSQL...");
           const res = await fetch("/api/user/sync", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(profile),
           });
-          const data = await res.json();
-          if (data.success) {
-            console.log("=> MongoDB Sync Complete");
+          
+          if (!res.ok) {
+            console.error(`=> Sync failed with status: ${res.status}`);
+            return;
+          }
+
+          const contentType = res.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const data = await res.json();
+            if (data.success) {
+              console.log("=> PostgreSQL Sync Complete");
+            }
+          } else {
+             console.error("=> Sync Error: Server returned non-JSON response");
           }
         } catch (err) {
-          console.error("Failed to sync with MongoDB", err);
+          console.error("Failed to sync with PostgreSQL", err);
         }
       }, 2000); // Debounce sync by 2 seconds
 

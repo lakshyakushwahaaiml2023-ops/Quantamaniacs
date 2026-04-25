@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useUser } from "@/lib/UserContext";
+import LanguageSwitcher from "./LanguageSwitcher";
 import {
   HomeIcon,
   CalendarIcon,
@@ -12,6 +13,10 @@ import {
   ArrowRightOnRectangleIcon,
   SparklesIcon,
   AcademicCapIcon,
+  DocumentDuplicateIcon,
+  PresentationChartLineIcon,
+  ArchiveBoxIcon,
+  RocketLaunchIcon,
 } from "@heroicons/react/24/outline";
 
 export default function Sidebar() {
@@ -22,9 +27,9 @@ export default function Sidebar() {
   const navItems = [
     { name: "Command Center", href: "/dashboard", icon: HomeIcon },
     { name: "Study Planner", href: "/dashboard/planner", icon: CalendarIcon },
-    { name: "AI Tutor Chat", href: "/dashboard/chat", icon: ChatBubbleLeftRightIcon },
-    { name: "Academic Profile", href: "/dashboard/profile", icon: AcademicCapIcon },
-    { name: "System Settings", href: "/dashboard/settings", icon: Cog6ToothIcon },
+    { name: "Career Guidance", href: "/dashboard/career", icon: RocketLaunchIcon },
+    { name: "Skill Analysis", href: "/dashboard/skills", icon: PresentationChartLineIcon },
+    { name: "Resume Builder", href: "/dashboard/resume", icon: DocumentDuplicateIcon },
   ];
 
   return (
@@ -65,6 +70,7 @@ export default function Sidebar() {
             </Link>
           );
         })}
+        <LanguageSwitcher />
       </nav>
 
       {/* User Section */}

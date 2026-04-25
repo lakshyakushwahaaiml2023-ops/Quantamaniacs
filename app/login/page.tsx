@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, type ComponentType, type SVGProps } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "@/lib/UserContext";
+import { useUser, defaultProfile } from "@/lib/UserContext";
 import {
   SparklesIcon,
   BoltIcon,
@@ -231,8 +231,9 @@ const TestimonialCard = ({ name, role, text, stars, avatar }: TestimonialCardPro
 export default function StudyBuddyLanding() {
   const [scrollY, setScrollY] = useState(0);
   const [mounted, setMounted] = useState(false);
+  const [dynamicTestimonials, setDynamicTestimonials] = useState<any[]>([]);
   const router = useRouter();
-  const { updateProfile, logout } = useUser();
+  const { profile, setProfile, logout } = useUser();
 
   const handleLogin = async () => {
     const defaultData = {
@@ -242,18 +243,23 @@ export default function StudyBuddyLanding() {
     };
 
     try {
-      // Try to fetch existing user data if any
       const res = await fetch(`/api/user/sync?name=${encodeURIComponent(defaultData.name)}`);
-      const data = await res.json();
+      const contentType = res.headers.get("content-type");
       
-      if (data.success && data.user) {
-        updateProfile({ ...data.user, isLoggedIn: true });
+      if (res.ok && contentType && contentType.includes("application/json")) {
+        const data = await res.json();
+        if (data.success && data.user) {
+          setProfile({ ...data.user, isLoggedIn: true });
+        } else {
+          setProfile((prev) => ({ ...prev, ...defaultData }));
+        }
       } else {
-        updateProfile(defaultData);
+        console.warn("Sync API returned non-JSON or error, falling back locally");
+        setProfile((prev) => ({ ...prev, ...defaultData }));
       }
     } catch (err) {
       console.warn("DB fetch failed, falling back to local login", err);
-      updateProfile(defaultData);
+      setProfile((prev) => ({ ...prev, ...defaultData }));
     }
     
     router.push("/");
@@ -263,6 +269,24 @@ export default function StudyBuddyLanding() {
     setMounted(true);
     const onScroll = () => setScrollY(window.scrollY);
     window.addEventListener("scroll", onScroll, { passive: true });
+    
+    // Fetch recent users for demo cards
+    const fetchRecentUsers = async () => {
+      try {
+        const res = await fetch("/api/user/list");
+        const data = await res.json();
+        if (data.success && data.users?.length > 0) {
+          // Merge static and dynamic, keeping most recent at top
+          setDynamicTestimonials([...data.users, ...testimonials.slice(0, 4 - data.users.length)]);
+        } else {
+          setDynamicTestimonials(testimonials);
+        }
+      } catch (err) {
+        setDynamicTestimonials(testimonials);
+      }
+    };
+    fetchRecentUsers();
+
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
@@ -608,8 +632,8 @@ export default function StudyBuddyLanding() {
             </h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {testimonials.map((t) => (
-              <TestimonialCard key={t.name} {...t} />
+            {dynamicTestimonials.map((t, idx) => (
+              <TestimonialCard key={`${t.name}-${idx}`} {...t} />
             ))}
           </div>
         </div>
@@ -649,6 +673,143 @@ export default function StudyBuddyLanding() {
             >
               Try Without Login
             </button>
+          </div>
+
+          {/* Quick Demo Access at the end of login page */}
+          <div className="mt-16 max-w-2xl mx-auto space-y-6">
+             <div className="flex items-center gap-4">
+                <div className="h-px flex-1 bg-gradient-to-r from-transparent to-white/10" />
+                <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-[0.3em] whitespace-nowrap">Neural Demo Access</h4>
+                <div className="h-px flex-1 bg-gradient-to-l from-transparent to-white/10" />
+             </div>
+             
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <button 
+                  onClick={async () => {
+                    try {
+                      let res = await fetch(`/api/user/sync?name=${encodeURIComponent("Alex Strategist")}`);
+                      const contentType = res.headers.get("content-type");
+                      
+                      if (!res.ok || !contentType || !contentType.includes("application/json")) {
+                        console.error("Neural Fetch Failed (Alex)");
+                        setProfile({ ...defaultProfile, name: "Alex Strategist", isLoggedIn: true });
+                        router.push("/dashboard");
+                        return;
+                      }
+
+                      let data = await res.json();
+                      if (!data.success) {
+                        // Auto-Seed Alex if not found
+                        const postRes = await fetch("/api/user/sync", {
+                           method: "POST",
+                           headers: { "Content-Type": "application/json" },
+                           body: JSON.stringify({
+                             name: "Alex Strategist",
+                             email: "alex@example.com",
+                             studyLevel: "University",
+                             course: "Computer Science",
+                             branch: "AI & ML",
+                             skills: ["React", "Python"],
+                             careerGoal: "AI Researcher",
+                             phoneNumber: "+919302139664"
+                           })
+                        });
+                        const postType = postRes.headers.get("content-type");
+                        if (postRes.ok && postType && postType.includes("application/json")) {
+                          data = await postRes.json();
+                        }
+                      }
+
+                      if (data.success || data.user) {
+                        setProfile({ ...defaultProfile, ...data.user, isLoggedIn: true });
+                        router.push("/dashboard");
+                      } else {
+                        throw new Error("Invalid response");
+                      }
+                    } catch (err) {
+                      console.error("Neural Login Failed:", err);
+                      setProfile({ ...defaultProfile, name: "Alex Strategist", isLoggedIn: true });
+                      router.push("/dashboard");
+                    }
+                  }}
+                  className="group relative p-6 bg-white/[0.02] border border-white/5 rounded-3xl hover:border-cyan-500/30 transition-all text-left overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                   <div className="relative flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                         <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Alex" alt="Alex" />
+                      </div>
+                      <div>
+                         <p className="text-sm font-bold text-white">Alex Strategist</p>
+                         <p className="text-[11px] text-slate-500 mt-0.5">Senior Associate • Premium</p>
+                      </div>
+                      <ArrowRightIcon className="w-4 h-4 text-slate-700 ml-auto group-hover:text-cyan-400 transition-transform group-hover:translate-x-1" />
+                   </div>
+                </button>
+
+                <button 
+                  onClick={async () => {
+                    try {
+                      let res = await fetch(`/api/user/sync?name=${encodeURIComponent("Sara Learner")}`);
+                      const contentType = res.headers.get("content-type");
+
+                      if (!res.ok || !contentType || !contentType.includes("application/json")) {
+                        console.error("Neural Fetch Failed (Sara)");
+                        setProfile({ ...defaultProfile, name: "Sara Learner", isLoggedIn: true });
+                        router.push("/dashboard");
+                        return;
+                      }
+
+                      let data = await res.json();
+                      if (!data.success) {
+                        // Auto-Seed Sara if not found
+                        const postRes = await fetch("/api/user/sync", {
+                           method: "POST",
+                           headers: { "Content-Type": "application/json" },
+                           body: JSON.stringify({
+                             name: "Sara Learner",
+                             email: "sara@example.com",
+                             studyLevel: "High School",
+                             course: "Science",
+                             branch: "Physics",
+                             skills: ["Logic", "Math"],
+                             careerGoal: "Astrophysicist",
+                             phoneNumber: "+919302139664"
+                           })
+                        });
+                        const postType = postRes.headers.get("content-type");
+                        if (postRes.ok && postType && postType.includes("application/json")) {
+                          data = await postRes.json();
+                        }
+                      }
+
+                      if (data.success || data.user) {
+                        setProfile({ ...defaultProfile, ...data.user, isLoggedIn: true });
+                        router.push("/dashboard");
+                      } else {
+                        throw new Error("Invalid response");
+                      }
+                    } catch (err) {
+                      console.error("Neural Login Failed:", err);
+                      setProfile({ ...defaultProfile, name: "Sara Learner", isLoggedIn: true });
+                      router.push("/dashboard");
+                    }
+                  }}
+                  className="group relative p-6 bg-white/[0.02] border border-white/5 rounded-3xl hover:border-purple-500/30 transition-all text-left overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                   <div className="relative flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                         <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Sara" alt="Sara" />
+                      </div>
+                      <div>
+                         <p className="text-sm font-bold text-white">Sara Learner</p>
+                         <p className="text-[11px] text-slate-500 mt-0.5">Junior Innovator • Beginner</p>
+                      </div>
+                      <ArrowRightIcon className="w-4 h-4 text-slate-700 ml-auto group-hover:text-purple-400 transition-transform group-hover:translate-x-1" />
+                   </div>
+                </button>
+             </div>
           </div>
           <p className="text-slate-600 text-xs">No credit card. No setup. Just results.</p>
         </div>

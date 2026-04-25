@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import twilio from "twilio";
-import connectDB from "@/config/db";
-import CallSession from "@/models/CallSession";
+import prisma from "@/lib/prisma";
 
 const VoiceResponse = twilio.twiml.VoiceResponse;
 
@@ -9,23 +8,11 @@ export async function POST(req: Request) {
   try {
     const url = new URL(req.url);
     const eventId = url.searchParams.get("eventId") || "unknown";
-    const taskName = url.searchParams.get("taskName") || "your task";
+    const taskId = url.searchParams.get("taskId") || "unknown";
+    const taskName = url.searchParams.get("taskName") || "your primary task";
     const reason = url.searchParams.get("reason") || "deadline";
 
-    // Load latest context from MongoDB
-    await connectDB();
-    const session = await CallSession.findOne({ eventId }).sort({ createdAt: -1 });
-    let isCompleted = false;
-    let taskId = "";
-    
-    if (session) {
-      taskId = session.taskId;
-      // Check if this specific task is in the completed list for the specific event
-      const event = session.profile.events.find((e: any) => e.id === session.eventId);
-      if (event && event.completedTasks) {
-        isCompleted = event.completedTasks.includes(taskId);
-      }
-    }
+    console.log("🎙️ Voice Webhook Triggered for Task:", taskName);
 
     const twiml = new VoiceResponse();
     twiml.pause({ length: 1 });
@@ -34,20 +21,20 @@ export async function POST(req: Request) {
       input: ["speech"],
       speechModel: "numbers_and_commands",
       speechTimeout: "auto",
-      action: `/api/twilio/process?eventId=${encodeURIComponent(eventId)}`,
+      action: `/api/twilio/process?eventId=${encodeURIComponent(eventId)}&taskId=${encodeURIComponent(taskId)}`,
       method: "POST",
     });
 
-    if (isCompleted) {
-      gather.say(`Hi there! I see you've already completed your task: ${taskName}. That is fantastic progress. Since you're ahead of schedule, do you want to start your next task early, or take a well deserved break? Use your voice to tell me what to do.`);
+    if (reason === "manual_test") {
+       gather.say({ language: 'hi-IN' }, `नमस्ते! मैं आपका स्टडी बडी एआई असिस्टेंट हूँ। मैं देख रहा हूँ कि आपका अगला टास्क है: ${taskName}. क्या मैं इसे आपके डैशबोर्ड पर पूरा हुआ मार्क कर दूँ, या आप अभी और काम करना चाहते हैं? मुझे बताएँ।`);
     } else if (reason === "manual") {
-      gather.say(`Hi study buddy! You've reached your agentic voice interface. I'm monitoring your progress on ${taskName}. You currently have this task pending. Would you like to mark it as done, or shift your schedule?`);
+      gather.say({ language: 'hi-IN' }, `नमस्ते! मैं आपको चेक-इन करने के लिए कॉल कर रहा हूँ। आपका वर्तमान स्टडी टास्क है: ${taskName}. क्या आप इसे पूरा हुआ मार्क करना चाहते हैं, या क्या मुझे आपका प्लान एडजस्ट करना चाहिए?`);
     } else {
-      gather.say(`Hi. You are running slightly behind on your task: ${taskName}. Should I push your schedule back, or do you want to skip this task? Please say your command now.`);
+      gather.say({ language: 'hi-IN' }, `नमस्ते। आप अपने इस टास्क में थोड़ा पीछे चल रहे हैं: ${taskName}. मैं आपकी मदद के लिए हूँ। क्या मैं आपका टाइम टेबल बढ़ा दूँ, या आप इसे अभी पूरा हुआ मार्क करना चाहते हैं? कृपया अपना जवाब दें।`);
     }
 
     // If they don't say anything
-    twiml.say("I didn't hear a command. Please update your dashboard manually if needed. Goodbye.");
+    twiml.say({ language: 'hi-IN' }, "मैं अभी भी सुन रहा हूँ। अगर आपको और समय चाहिए तो कृपया अपने डैशबोर्ड को अपडेट करें। अभी के लिए अलविदा!");
 
     return new NextResponse(twiml.toString(), {
       status: 200,

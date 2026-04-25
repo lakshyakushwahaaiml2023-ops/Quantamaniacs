@@ -1,23 +1,25 @@
 import { NextResponse } from "next/server";
-import connectDB from "@/config/db";
-import TwilioUpdate from "@/models/TwilioUpdate";
+import prisma from "@/lib/prisma";
 
 export async function GET() {
   try {
-    await connectDB();
-    
-    // Find the latest unprocessed update
-    const update = await TwilioUpdate.findOne({ processed: false }).sort({ createdAt: -1 });
+    // Find the latest unprocessed update in PostgreSQL via Prisma
+    const update = await prisma.twilioUpdate.findFirst({
+      where: { processed: false },
+      orderBy: { createdAt: 'desc' }
+    });
     
     if (update) {
       // Mark as processed so it's only consumed once
-      update.processed = true;
-      await update.save();
+      await prisma.twilioUpdate.update({
+        where: { id: update.id },
+        data: { processed: true }
+      });
       
       return NextResponse.json({ 
         updateAvailable: true, 
         eventId: update.eventId, 
-        newTasks: update.newTasks, 
+        newTasks: JSON.parse(update.newTasks), 
         voiceCommand: update.voiceCommand 
       });
     }

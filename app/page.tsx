@@ -13,6 +13,7 @@ import InteractiveMiniCalendar from "@/components/InteractiveMiniCalendar";
 import DashboardStats from "@/components/DashboardStats";
 import RecentChats from "@/components/RecentChats";
 import { calculateEventSchedule } from "@/lib/scheduler";
+import { ArrowRightIcon } from "@heroicons/react/24/outline";
 
 export interface SummaryData {
   summary: string;

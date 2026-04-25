@@ -59,7 +59,18 @@ SCHEDULE SYNC & TIME RULES:
 
   if (contextData && contextData.profile) {
     systemPrompt += `\n\n--- LIVE DASHBOARD CONTEXT ---`;
-    systemPrompt += `\nSTUDENT: ${contextData.profile.name} (${contextData.profile.studyLevel})`;
+    systemPrompt += `\nSTUDENT IDENTITY: ${contextData.profile.name || "Scholar"}`;
+    systemPrompt += `\nACADEMIC STANDING: ${contextData.profile.year || contextData.profile.studyLevel || "Student"} in ${contextData.profile.stream || "General"} (${contextData.profile.branch || "No Major"})`;
+    systemPrompt += `\nCAREER GOAL: ${contextData.profile.careerGoal || "General Graduation"}`;
+    systemPrompt += `\nSKILL LEVEL: ${contextData.profile.skillLevel || "Beginner"}`;
+    
+    // Injecting the new heavy constraints
+    systemPrompt += `\n\n--- CRITICAL LIFE CONSTRAINTS ---`;
+    systemPrompt += `\nMAX STUDY TIME: ${contextData.profile.studyTime || "2 Hours"} (DO NOT schedule more tasks than this timeframe allows!)`;
+    systemPrompt += `\nINTERNET QUALITY: ${contextData.profile.access || "Unknown"} (If 'Limited' or 'Low', heavily suggest offline-first activities like textbook reading and avoid heavy video recommendations.)`;
+    systemPrompt += `\nRESOURCE ACCESS: ${contextData.profile.resourcesAccess || "Unknown"} (If 'Self Study', assume they have no external help and explain concepts from scratch.)`;
+    systemPrompt += `\nWORKING STATUS: ${contextData.profile.workingStatus?.includes("Yes") ? "Working Student (HIGH BURNOUT RISK - Keep tasks hyper-efficient)" : "Full-Time Student"}`;
+    systemPrompt += `\nLOCATION TYPE: ${contextData.profile.locationType || "Unknown"}`;
     
     // Use the optimized activeSchedule passed from the frontend if available
     const scheduleToUse = contextData.activeSchedule || (contextData.profile.events[0]?.plan?.today_tasks || []);

@@ -21,41 +21,39 @@ import {
 } from "@heroicons/react/24/outline";
 
 type OnboardingData = {
+  name: string;
+  phoneNumber: string;
   stream: string;
   branch: string;
   year: string;
   careerGoal: string;
-  targetSalary: string;
-  skills: string[];
   skillLevel: string;
-  learningStyle: string;
-  studyTime: string;
-  language: string;
-  access: string;
-  interestedIn: string[];
-  biggestProblem: string[];
+  dailyStudyTime: string;
+  workingStatus: string;
+  internetAccess: string;
+  locationType: string;
+  resourcesAccess: string;
 };
 
 export default function OnboardingPage() {
   const router = useRouter();
   const { profile, updateProfile } = useUser();
   const [step, setStep] = useState(1);
-  const totalSteps = 14; // 13 questions + 1 summary
+  const totalSteps = 12; // 11 questions + 1 summary
 
   const [data, setData] = useState<OnboardingData>({
+    name: "",
+    phoneNumber: "+91",
     stream: "",
     branch: "",
     year: "",
     careerGoal: "",
-    targetSalary: "",
-    skills: [],
     skillLevel: "",
-    learningStyle: "",
-    studyTime: "",
-    language: "",
-    access: "",
-    interestedIn: [],
-    biggestProblem: [],
+    dailyStudyTime: "",
+    workingStatus: "",
+    internetAccess: "",
+    locationType: "",
+    resourcesAccess: "",
   });
 
   const nextStep = () => {
@@ -74,32 +72,48 @@ export default function OnboardingPage() {
     }
   };
 
-  const handleComplete = () => {
-    // Generate a profile summary (placeholder logic)
-    const summary = `${data.year} ${data.stream} student specializing in ${data.branch}. Goal: ${data.careerGoal}. Focus skills: ${data.skills.join(", ")}.`;
+  const handleComplete = async () => {
+    // Generate a profile summary
+    const summary = `${data.year} ${data.stream} student specializing in ${data.branch}. Goal: ${data.careerGoal}. Skill level: ${data.skillLevel}.`;
     
-    // Update profile in context with the full onboarding data
-    updateProfile({
-      isLoggedIn: true, // Auto-login after onboarding for demo purposes
-      name: profile.name || "Scholar",
+    const profilePayload = {
+      name: data.name || "Scholar",
+      phoneNumber: data.phoneNumber,
       stream: data.stream,
       branch: data.branch,
       year: data.year,
       careerGoal: data.careerGoal,
-      targetSalary: data.targetSalary,
-      skills: data.skills,
       skillLevel: data.skillLevel,
-      learningStyle: data.learningStyle,
-      studyTime: data.studyTime,
-      language: data.language,
-      access: data.access,
-      interestedIn: data.interestedIn,
-      biggestProblem: data.biggestProblem,
       studyLevel: data.year,
       course: `${data.stream} - ${data.branch}`,
-    });
+      studyTime: data.dailyStudyTime,
+      access: data.internetAccess,
+      isLoggedIn: true,
+    };
 
-    // In a real app, we'd save this 'data' to a database or extended profile
+    // Sync with database
+    try {
+      const res = await fetch("/api/user/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(profilePayload),
+      });
+
+      if (res.ok) {
+        const result = await res.json();
+        if (result.success && result.user) {
+          updateProfile({ ...result.user, isLoggedIn: true });
+        } else {
+          updateProfile(profilePayload);
+        }
+      } else {
+        updateProfile(profilePayload);
+      }
+    } catch (err) {
+      console.error("Failed to sync onboarding data:", err);
+      updateProfile(profilePayload);
+    }
+
     router.push("/dashboard");
   };
 
@@ -116,19 +130,17 @@ export default function OnboardingPage() {
 
   const isNextDisabled = () => {
     switch (step) {
-      case 1: return !data.stream;
-      case 2: return !data.branch;
-      case 3: return !data.year;
-      case 4: return !data.careerGoal;
-      case 5: return !data.targetSalary;
-      case 6: return data.skills.length === 0;
-      case 7: return !data.skillLevel;
-      case 8: return !data.learningStyle;
-      case 9: return !data.studyTime;
-      case 10: return !data.language;
-      case 11: return !data.access;
-      case 12: return data.interestedIn.length === 0;
-      case 13: return data.biggestProblem.length === 0;
+      case 1: return !data.name || !data.phoneNumber || data.phoneNumber.length < 10;
+      case 2: return !data.stream;
+      case 3: return !data.branch;
+      case 4: return !data.year;
+      case 5: return !data.careerGoal;
+      case 6: return !data.skillLevel;
+      case 7: return !data.dailyStudyTime;
+      case 8: return !data.workingStatus;
+      case 9: return !data.internetAccess;
+      case 10: return !data.locationType;
+      case 11: return !data.resourcesAccess;
       default: return false;
     }
   };
@@ -211,6 +223,39 @@ export default function OnboardingPage() {
             {step === 1 && (
               <div className="space-y-8">
                 <div className="text-center space-y-4">
+                  <h1 className="text-4xl sm:text-5xl font-black tracking-tight">Let's build your <span className="gradient-text">Identity Card</span></h1>
+                  <p className="text-slate-400 max-w-lg mx-auto">We need your basic demographic nodes to initialize your neural study persona.</p>
+                </div>
+                <div className="max-w-md mx-auto space-y-6">
+                   <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Legal Full Name</label>
+                      <input 
+                        type="text"
+                        placeholder="e.g. Alex Rivera"
+                        className="w-full bg-slate-900/50 border border-slate-800 rounded-2xl p-6 text-xl font-bold focus:border-cyan-500 outline-none transition-all focus:ring-4 focus:ring-cyan-500/10 placeholder:text-slate-700"
+                        value={data.name}
+                        onChange={(e) => setData({ ...data, name: e.target.value })}
+                        autoFocus
+                      />
+                   </div>
+                   <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Neural Alert Number (Twilio Ready)</label>
+                      <input 
+                        type="tel"
+                        placeholder="+919302139664"
+                        className="w-full bg-slate-900/50 border border-slate-800 rounded-2xl p-6 text-xl font-bold focus:border-cyan-500 outline-none transition-all focus:ring-4 focus:ring-cyan-500/10 placeholder:text-slate-700 font-mono"
+                        value={data.phoneNumber}
+                        onChange={(e) => setData({ ...data, phoneNumber: e.target.value })}
+                      />
+                      <p className="text-[9px] text-slate-600 font-medium px-1">Your AI coach will use this to call you for deadline enforcement.</p>
+                   </div>
+                </div>
+              </div>
+            )}
+
+            {step === 2 && (
+              <div className="space-y-8">
+                <div className="text-center space-y-4">
                   <h1 className="text-4xl sm:text-5xl font-black tracking-tight">Choose your <span className="gradient-text">College Stream</span></h1>
                   <p className="text-slate-400 max-w-lg mx-auto">Help us understand your academic foundation so we can tailor resources for you.</p>
                 </div>
@@ -228,7 +273,7 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {step === 2 && (
+            {step === 3 && (
               <div className="space-y-8">
                 <div className="text-center space-y-4">
                   <h1 className="text-4xl sm:text-5xl font-black tracking-tight">What's your <span className="gradient-text">Specialization</span>?</h1>
@@ -260,7 +305,7 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {step === 3 && (
+            {step === 4 && (
               <div className="space-y-8">
                 <div className="text-center space-y-4">
                   <h1 className="text-4xl sm:text-5xl font-black tracking-tight">Current <span className="gradient-text">Year</span></h1>
@@ -280,7 +325,7 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {step === 4 && (
+            {step === 5 && (
               <div className="space-y-8">
                 <div className="text-center space-y-4">
                   <h1 className="text-4xl sm:text-5xl font-black tracking-tight">Your <span className="gradient-text">Career Goal</span></h1>
@@ -309,48 +354,7 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {step === 5 && (
-              <div className="space-y-8">
-                <div className="text-center space-y-4">
-                  <h1 className="text-4xl sm:text-5xl font-black tracking-tight">Target <span className="gradient-text">Salary Goal</span></h1>
-                  <p className="text-slate-400">What's the annual package you're aiming for? (in LPA or currency of choice)</p>
-                </div>
-                <div className="max-w-md mx-auto">
-                  <div className="relative">
-                    <span className="absolute left-6 top-1/2 -translate-y-1/2 text-cyan-500 font-bold text-2xl">₹</span>
-                    <input 
-                      type="text"
-                      placeholder="e.g. 12 LPA, 50 LPA..."
-                      className="w-full bg-slate-900/50 border border-slate-800 rounded-2xl p-6 pl-12 text-xl font-bold focus:border-cyan-500 outline-none transition-all focus:ring-4 focus:ring-cyan-500/10 placeholder:text-slate-600"
-                      value={data.targetSalary}
-                      onChange={(e) => setData({ ...data, targetSalary: e.target.value })}
-                      autoFocus
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
             {step === 6 && (
-              <div className="space-y-8">
-                <div className="text-center space-y-4">
-                  <h1 className="text-4xl sm:text-5xl font-black tracking-tight">Skills You <span className="gradient-text">Want to Learn</span></h1>
-                  <p className="text-slate-400">Select all that apply. We'll find resources based on these.</p>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {["DSA", "Web Development", "Machine Learning", "Data Science", "Cloud", "Cybersecurity", "Aptitude", "Communication Skills", "Interview Preparation"].map(item => (
-                    <OptionCard 
-                      key={item}
-                      label={item}
-                      active={data.skills.includes(item)}
-                      onClick={() => toggleMultiSelect("skills", item)}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {step === 7 && (
               <div className="space-y-8">
                 <div className="text-center space-y-4">
                   <h1 className="text-4xl sm:text-5xl font-black tracking-tight">Current <span className="gradient-text">Skill Level</span></h1>
@@ -379,20 +383,50 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {step === 8 && (
+            {step === 7 && (
               <div className="space-y-8">
                 <div className="text-center space-y-4">
-                  <h1 className="text-4xl sm:text-5xl font-black tracking-tight">Preferred <span className="gradient-text">Learning Style</span></h1>
-                  <p className="text-slate-400">How do you retain information best?</p>
+                  <h1 className="text-4xl sm:text-5xl font-black tracking-tight"><span className="gradient-text">Daily</span> Study Time</h1>
+                  <p className="text-slate-400">Be realistic. How much time can you consistently dedicate every day?</p>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {["Short Notes", "Video Learning", "Practice Questions", "Daily Tasks", "Roadmaps", "Mentor Guidance"].map(item => (
+                <div className="grid grid-cols-2 gap-4 max-w-xl mx-auto">
+                  {["1-2 Hours", "3-4 Hours", "5-6 Hours", "8+ Hours"].map(item => (
                     <OptionCard 
                       key={item}
                       label={item}
-                      active={data.learningStyle === item}
-                      onClick={() => setData({ ...data, learningStyle: item })}
+                      icon={ClockIcon}
+                      active={data.dailyStudyTime === item}
+                      onClick={() => setData({ ...data, dailyStudyTime: item })}
                     />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {step === 8 && (
+              <div className="space-y-8">
+                <div className="text-center space-y-4">
+                  <h1 className="text-4xl sm:text-5xl font-black tracking-tight"><span className="gradient-text">Job Status</span></h1>
+                  <p className="text-slate-400">Are you currently working or doing a part-time job?</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto">
+                  {[
+                    { label: "No, full-time student", desc: "100% focused on studies" },
+                    { label: "Yes, part-time", desc: "Working ~20 hours/week" },
+                    { label: "Yes, full-time", desc: "Working 40+ hours/week" }
+                  ].map(item => (
+                    <button
+                      key={item.label}
+                      onClick={() => setData({ ...data, workingStatus: item.label })}
+                      className={`p-6 rounded-3xl border transition-all duration-300 text-left ${
+                        data.workingStatus === item.label 
+                          ? "bg-cyan-500/20 border-cyan-500 shadow-glow" 
+                          : "bg-slate-900/50 border-slate-800 hover:border-slate-700"
+                      }`}
+                    >
+                      <h3 className={`text-lg font-black mb-1 ${data.workingStatus === item.label ? "text-cyan-400" : "text-white"}`}>{item.label}</h3>
+                      <p className="text-slate-400 text-xs font-medium">{item.desc}</p>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -401,17 +435,21 @@ export default function OnboardingPage() {
             {step === 9 && (
               <div className="space-y-8">
                 <div className="text-center space-y-4">
-                  <h1 className="text-4xl sm:text-5xl font-black tracking-tight"><span className="gradient-text">Daily</span> Study Time</h1>
-                  <p className="text-slate-400">Commitment matters. How much can you spare?</p>
+                  <h1 className="text-4xl sm:text-5xl font-black tracking-tight"><span className="gradient-text">Internet</span> Availability</h1>
+                  <p className="text-slate-400">This helps us optimize content delivery for offline use.</p>
                 </div>
-                <div className="grid grid-cols-2 gap-4 max-w-xl mx-auto">
-                  {["1 Hour", "2 Hours", "3+ Hours", "Weekend Only"].map(item => (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto">
+                  {[
+                    "Good (Wi-Fi/5G)", 
+                    "Limited (Daily Data Cap)", 
+                    "Low (Spotty Connection)"
+                  ].map(item => (
                     <OptionCard 
                       key={item}
                       label={item}
-                      icon={ClockIcon}
-                      active={data.studyTime === item}
-                      onClick={() => setData({ ...data, studyTime: item })}
+                      icon={GlobeAltIcon}
+                      active={data.internetAccess === item}
+                      onClick={() => setData({ ...data, internetAccess: item })}
                     />
                   ))}
                 </div>
@@ -421,17 +459,17 @@ export default function OnboardingPage() {
             {step === 10 && (
               <div className="space-y-8">
                 <div className="text-center space-y-4">
-                  <h1 className="text-4xl sm:text-5xl font-black tracking-tight">Language <span className="gradient-text">Preference</span></h1>
-                  <p className="text-slate-400">We support multilingual neural processing.</p>
+                  <h1 className="text-4xl sm:text-5xl font-black tracking-tight"><span className="gradient-text">Location</span> Type</h1>
+                  <p className="text-slate-400">Where are you currently based?</p>
                 </div>
-                <div className="grid grid-cols-2 gap-4 max-w-xl mx-auto">
-                  {["English", "Hindi", "Hinglish", "Regional Language Support"].map(item => (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto">
+                  {["Urban (Metro/Tech Hub)", "Semi-urban (Tier 2/3)", "Rural"].map(item => (
                     <OptionCard 
                       key={item}
                       label={item}
                       icon={GlobeAltIcon}
-                      active={data.language === item}
-                      onClick={() => setData({ ...data, language: item })}
+                      active={data.locationType === item}
+                      onClick={() => setData({ ...data, locationType: item })}
                     />
                   ))}
                 </div>
@@ -441,17 +479,17 @@ export default function OnboardingPage() {
             {step === 11 && (
               <div className="space-y-8">
                 <div className="text-center space-y-4">
-                  <h1 className="text-4xl sm:text-5xl font-black tracking-tight">Internet & <span className="gradient-text">Device Access</span></h1>
-                  <p className="text-slate-400">So we can optimize for offline or high-bandwidth learning.</p>
+                  <h1 className="text-4xl sm:text-5xl font-black tracking-tight">Access to <span className="gradient-text">Resources</span></h1>
+                  <p className="text-slate-400">How do you primarily study?</p>
                 </div>
-                <div className="grid grid-cols-2 gap-4 max-w-xl mx-auto">
-                  {["Only Mobile", "Laptop + Mobile", "Limited Internet", "Good Internet Access"].map(item => (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto">
+                  {["Coaching / Tuition", "College Classes Only", "100% Self Study"].map(item => (
                     <OptionCard 
                       key={item}
                       label={item}
-                      icon={DevicePhoneMobileIcon}
-                      active={data.access === item}
-                      onClick={() => setData({ ...data, access: item })}
+                      icon={AcademicCapIcon}
+                      active={data.resourcesAccess === item}
+                      onClick={() => setData({ ...data, resourcesAccess: item })}
                     />
                   ))}
                 </div>
@@ -459,45 +497,6 @@ export default function OnboardingPage() {
             )}
 
             {step === 12 && (
-              <div className="space-y-8">
-                <div className="text-center space-y-4">
-                  <h1 className="text-4xl sm:text-5xl font-black tracking-tight">What else are you <span className="gradient-text">Interested In</span>?</h1>
-                  <p className="text-slate-400">Extracurriculars and growth opportunities.</p>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {["Scholarships", "Internships", "Hackathons", "Open Source", "Research Papers", "College Projects", "Resume Building", "LinkedIn Growth"].map(item => (
-                    <OptionCard 
-                      key={item}
-                      label={item}
-                      active={data.interestedIn.includes(item)}
-                      onClick={() => toggleMultiSelect("interestedIn", item)}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {step === 13 && (
-              <div className="space-y-8">
-                <div className="text-center space-y-4">
-                  <h1 className="text-4xl sm:text-5xl font-black tracking-tight">Biggest <span className="gradient-text">Current Problem</span>?</h1>
-                  <p className="text-slate-400">Common struggles. We are here to solve them.</p>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {["No roadmap", "No consistency", "Fear of placements", "Weak coding skills", "Lack of confidence", "Communication issues", "Time management", "Financial limitations"].map(item => (
-                    <OptionCard 
-                      key={item}
-                      label={item}
-                      icon={ExclamationTriangleIcon}
-                      active={data.biggestProblem.includes(item)}
-                      onClick={() => toggleMultiSelect("biggestProblem", item)}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {step === 14 && (
               <div className="space-y-12 animate-fadeIn">
                 <div className="text-center space-y-4">
                   <div className="w-24 h-24 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-green-500/30 animate-successPulse">
@@ -507,22 +506,21 @@ export default function OnboardingPage() {
                     Your AI assistant <br /><span className="gradient-text">is ready.</span>
                   </h1>
                   <p className="text-slate-400 text-lg max-w-xl mx-auto">
-                    We've synthesized your goals and constraints into a custom neural blueprint.
+                    We've synthesized your goals into a custom neural blueprint.
                   </p>
                 </div>
 
                 <div className="glass rounded-[32px] p-8 md:p-10 border border-white/10 shadow-2xl relative overflow-hidden group">
-                   {/* Background Glow */}
                    <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2 group-hover:bg-cyan-500/20 transition-all duration-700" />
                    
                    <div className="relative z-10 space-y-8">
                       <div className="flex flex-col md:flex-row items-start md:items-center gap-6 pb-8 border-b border-white/5">
                         <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-cyan-500 to-purple-500 flex items-center justify-center text-white font-black text-2xl shadow-glow">
-                          {data.stream.charAt(0)}
+                          {data.name?.charAt(0) || "S"}
                         </div>
                         <div>
                           <div className="flex items-center gap-2 mb-1">
-                            <h3 className="text-2xl font-black text-white">Student Profile Summary</h3>
+                            <h3 className="text-2xl font-black text-white">{data.name || "Student"} Identity Summary</h3>
                             <span className="px-2 py-0.5 rounded-full bg-cyan-500 text-[10px] font-black text-white uppercase tracking-widest">Synced</span>
                           </div>
                           <p className="text-slate-400 font-medium">Personalized for {data.year} {data.stream}</p>
@@ -533,22 +531,18 @@ export default function OnboardingPage() {
                         <div className="space-y-2">
                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Academic Specialization</span>
                            <span className="text-white font-bold block">{data.branch}</span>
-                           <p className="text-xs text-slate-400 leading-relaxed">Focusing on {data.skills.slice(0, 3).join(", ")} roadmap.</p>
                         </div>
                         <div className="space-y-2">
                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Target Trajectory</span>
                            <span className="text-white font-bold block">{data.careerGoal}</span>
-                           <p className="text-xs text-slate-400 leading-relaxed">Aiming for {data.targetSalary} annually.</p>
                         </div>
                         <div className="space-y-2">
-                           <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Learning Architecture</span>
-                           <span className="text-white font-bold block">{data.learningStyle}</span>
-                           <p className="text-xs text-slate-400 leading-relaxed">Optimized for {data.language} in {data.studyTime} blocks.</p>
+                           <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Current Readiness</span>
+                           <span className="text-white font-bold block">{data.skillLevel}</span>
                         </div>
                         <div className="space-y-2">
-                           <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Environment Optimization</span>
-                           <span className="text-white font-bold block">{data.access}</span>
-                           <p className="text-xs text-slate-400 leading-relaxed">{data.interestedIn.length} extracurricular interest nodes mapped.</p>
+                           <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">System Optimization</span>
+                           <span className="text-white font-bold block">Adaptive Planning Active</span>
                         </div>
                       </div>
 
@@ -558,7 +552,7 @@ export default function OnboardingPage() {
                           <span className="text-sm font-bold uppercase tracking-widest">Motivational Directive</span>
                         </div>
                         <p className="text-slate-300 italic font-medium leading-relaxed">
-                          "You've taken the first step toward masterly consistency. Remember, {data.name || "Scholar"}, your current struggle with {data.biggestProblem[0]} is just data for your eventual success. We've updated your neural link to prioritize roadmap clarity and consistency."
+                          "You've taken the first step toward masterly consistency. Your profile is now synchronized with our neural study planners. Let's start building your roadmap."
                         </p>
                       </div>
                    </div>
