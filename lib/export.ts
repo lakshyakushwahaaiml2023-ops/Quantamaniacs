@@ -1,5 +1,3 @@
-import { jsPDF } from "jspdf";
-
 export interface SummaryData {
   summary: string;
   keyTerms: Array<{ term: string; definition: string }>;
@@ -72,86 +70,9 @@ export const exportToTXT = (data: SummaryData, filename: string = "study-summary
 };
 
 export const exportToPDF = async (data: SummaryData, filename: string = "study-summary.pdf") => {
-  const doc = new jsPDF();
-  const margin = 20;
-  const pageWidth = doc.internal.pageSize.getWidth();
-  let cursorY = 20;
-
-  // Helper for text wrapping and auto-paging
-  const addText = (text: string, fontSize: number = 10, isBold: boolean = false) => {
-    doc.setFontSize(fontSize);
-    doc.setFont("helvetica", isBold ? "bold" : "normal");
-    
-    // Simple sanitization for PDF (remove markdown symbols)
-    const cleanText = text
-      .replace(/(\*\*|__)(.*?)\1/g, "$2")
-      .replace(/(\*|_)(.*?)\1/g, "$2")
-      .replace(/\\n/g, "\n")
-      .replace(/###?\s+/g, "")
-      .replace(/[\$]{1,2}/g, ""); // Remove LaTeX symbols for plain PDF text
-
-    const lines = doc.splitTextToSize(cleanText, pageWidth - margin * 2);
-    
-    lines.forEach((line: string) => {
-      if (cursorY > 270) {
-        doc.addPage();
-        cursorY = 20;
-      }
-      doc.text(line, margin, cursorY);
-      cursorY += fontSize * 0.5;
-    });
-    cursorY += 5;
-  };
-
-  // Title
-  doc.setTextColor(0, 184, 212); // Cyan
-  addText("STUDY BUDDY AI: INTELLIGENCE SUMMARY", 16, true);
-  doc.setTextColor(0, 0, 0);
-  cursorY += 10;
-
-  // Summary
-  doc.setTextColor(59, 130, 246); // Blue
-  addText("SUMMARY", 14, true);
-  doc.setTextColor(0, 0, 0);
-  addText(data.summary, 10);
-  cursorY += 10;
-
-  // Key Terms
-  if (data.keyTerms.length > 0) {
-    doc.setTextColor(59, 130, 246);
-    addText("KEY TERMS", 14, true);
-    doc.setTextColor(0, 0, 0);
-    data.keyTerms.forEach((item, i) => {
-      addText(`${i + 1}. ${item.term}: ${item.definition}`, 10);
-    });
-    cursorY += 10;
-  }
-
-  // Formulas
-  if (data.formulas && data.formulas.length > 0) {
-    doc.setTextColor(59, 130, 246);
-    addText("FORMULAS", 14, true);
-    doc.setTextColor(0, 0, 0);
-    data.formulas.forEach((item, i) => {
-      addText(`${i + 1}. ${item.name}: ${item.formula}`, 10, true);
-      addText(`Explanation: ${item.explanation}`, 9);
-    });
-    cursorY += 10;
-  }
-
-  // Questions
-  if (data.questions.length > 0) {
-    doc.setTextColor(59, 130, 246);
-    addText("PRACTICE QUESTIONS", 14, true);
-    doc.setTextColor(0, 0, 0);
-    data.questions.forEach((q, i) => {
-      addText(`Q${i + 1}: ${q.question}`, 10, true);
-      q.options.forEach((opt, j) => {
-        addText(`  ${String.fromCharCode(65 + j)}) ${opt}`, 10);
-      });
-      cursorY += 5;
-    });
-  }
-
-  doc.save(filename);
+  // Use zero-dependency native browser print functionality
+  const originalTitle = document.title;
+  document.title = filename.replace('.pdf', '');
+  window.print();
+  setTimeout(() => { document.title = originalTitle; }, 500);
 };
