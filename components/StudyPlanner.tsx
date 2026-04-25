@@ -604,9 +604,8 @@ export default function StudyPlanner() {
     return () => window.removeEventListener("sync-schedule", handleSyncEvent);
   }, [profile.events]); // Re-bind if events change
 
-  // 🎙️ Agentic Voice Caller: Deadline Monitor & UI Sync
+  // 🎙️ Agentic Voice Caller: UI Sync Poller
   useEffect(() => {
-    // 1. Sync from the Twilio DB every 3 seconds to catch Voice updates
     const syncInterval = setInterval(async () => {
       try {
         const res = await fetch("/api/twilio/status");
@@ -614,19 +613,20 @@ export default function StudyPlanner() {
           const data = await res.json();
           if (data && data.updateAvailable && data.eventId && data.newTasks) {
             console.log("☎️ Incoming Dashboard Mutation from Twilio Voice Agent:", data.voiceCommand);
-            
-            // Atomic update to prevent stale closures
             updateEventPlanTasks(data.eventId, data.newTasks);
-            
             import("@/lib/animations").then(lib => lib.createConfetti());
           }
         }
       } catch (e) {
-        console.error("Twilio Poller Error:", e);
+        // Silently handle transient network errors during development
       }
     }, 3000);
 
-    // 2. Deadline Monitor: Check for tasks 5 mins past deadline
+    return () => clearInterval(syncInterval);
+  }, [updateEventPlanTasks]);
+
+  // 🎙️ Agentic Voice Caller: Deadline Monitor
+  useEffect(() => {
     const deadlineInterval = setInterval(() => {
       for (const event of profile.events) {
          if (!event.plan?.today_tasks || !event.phoneNumber) continue;
@@ -638,8 +638,8 @@ export default function StudyPlanner() {
             const taskId = `task-${event.id}-${i}`;
             const isCompleted = event.completedTasks?.includes(taskId);
             
-            if (!isCompleted && task.end_time) {
-               const endMatch = task.end_time.match(/(\d+):(\d+)\s+(AM|PM)/);
+            if (!isCompleted && task.endTime) {
+               const endMatch = task.endTime.match(/(\d+):(\d+)\s+(AM|PM)/);
                if (endMatch) {
                   let hours = parseInt(endMatch[1]);
                   const mins = parseInt(endMatch[2]);
@@ -652,6 +652,7 @@ export default function StudyPlanner() {
                   const now = new Date();
                   const diffMins = (now.getTime() - targetTime.getTime()) / (1000 * 60);
                   
+                  // Trigger call if 5+ minutes past deadline and not already notified for this specific instance
                   if (diffMins >= 5 && !notifiedTaskIds.has(taskId)) {
                      setNotifiedTaskIds(prev => new Set([...prev, taskId]));
                      console.log("Deadline missed! Triggering Agentic Voice Call...");
@@ -666,19 +667,16 @@ export default function StudyPlanner() {
                            taskName: task.task,
                            profile,
                         })
-                     }).catch(console.error);
+                     }).catch(err => console.error("Call Trigger Error:", err));
                   }
                }
             }
          }
       }
-    }, 10000); // Check every 10 seconds
+    }, 10000);
 
-    return () => {
-       clearInterval(syncInterval);
-       clearInterval(deadlineInterval);
-    };
-  }, [profile.events, notifiedTaskIds, updateEvent, syncAllSchedules]);
+    return () => clearInterval(deadlineInterval);
+  }, [profile.events, notifiedTaskIds, profile]);
 
   const handleCreateEvent = (e: React.FormEvent) => {
     e.preventDefault();

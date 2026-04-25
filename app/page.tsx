@@ -47,6 +47,13 @@ export default function Home() {
   const { profile, logout } = useUser();
   const router = useRouter();
 
+  // Redirect to dashboard if already logged in
+  useEffect(() => {
+    if (profile.isLoggedIn) {
+      router.push("/dashboard");
+    }
+  }, [profile.isLoggedIn, router]);
+
   const handleTextInput = (inputText: string) => {
     setText(inputText);
     setError("");
@@ -251,13 +258,9 @@ export default function Home() {
         />
       </div>
 
-      {/* Sidebar (Right aligned logged in, Left aligned logged out) */}
+      {/* Sidebar (Left aligned) */}
       <aside
-        className={`relative md:fixed md:top-0 z-40 h-auto md:h-[100vh] flex flex-col justify-between pointer-events-none transition-all duration-500 ${
-          profile.isLoggedIn
-            ? "md:right-0 w-full md:w-[320px] lg:w-[380px] p-4 md:p-6 border-l border-slate-800/80 bg-[#070b14]/70 backdrop-blur-md"
-            : "md:left-0 w-full md:w-auto items-center p-4 md:p-8"
-        }`}
+        className="relative md:fixed md:top-0 z-40 h-auto md:h-[100vh] flex flex-col justify-between items-center p-4 md:p-8 transition-all duration-500 w-full md:w-auto"
       >
         {/* Top Section: Logo and Profile */}
         <div className="flex flex-col items-center pointer-events-auto w-full gap-4">
@@ -269,15 +272,10 @@ export default function Home() {
             <img
               src="/logo.png"
               alt="StudySmart Logo"
-              className={`relative w-auto object-contain transition-all duration-300 group-hover:drop-shadow-[0_4px_25px_rgba(56,189,248,0.4)] group-active:scale-95 mix-blend-screen opacity-90 animate-float ${
-                profile.isLoggedIn
-                  ? "h-24 md:h-36 lg:h-40"
-                  : "h-44 md:h-60 lg:h-72"
-              }`}
+              className="relative w-auto object-contain transition-all duration-300 group-hover:drop-shadow-[0_4px_25px_rgba(56,189,248,0.4)] group-active:scale-95 mix-blend-screen opacity-90 animate-float h-44 md:h-60 lg:h-72"
             />
           </a>
 
-          {!profile.isLoggedIn ? (
             <div className="flex flex-col items-center flex-shrink-0 mt-4 md:mt-auto md:mb-12">
               <button
                 onClick={() => router.push("/login")}
@@ -285,79 +283,13 @@ export default function Home() {
               >
                 Neural Login
               </button>
-              <p className="hidden md:block text-[11px] text-slate-400 mt-3 text-center !leading-tight tracking-widest font-mono uppercase opacity-90">
+              <p className="text-[11px] text-slate-400 mt-3 text-center !leading-tight tracking-widest font-mono uppercase opacity-90 hidden md:block">
                 Unlock dynamic
                 <br />
                 study plans & events
               </p>
             </div>
-          ) : (
-            <div className="flex flex-col items-center w-full mt-2">
-              <button
-                onClick={() => router.push("/login")}
-                className="group flex items-center gap-4 w-full justify-center p-3 rounded-2xl bg-slate-900/60 border border-slate-800 hover:border-cyan-500/50 transition-colors"
-              >
-                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-cyan-500 to-purple-500 flex items-center justify-center text-white font-bold text-lg shadow-[0_0_15px_rgba(0,255,255,0.3)] group-hover:scale-105 transition-all">
-                  {profile.name ? profile.name.charAt(0).toUpperCase() : "U"}
-                </div>
-                <div className="flex flex-col items-start">
-                  <span className="text-sm font-bold text-slate-200 group-hover:text-cyan-400 transition-colors truncate max-w-[150px]">
-                    {profile.name}
-                  </span>
-                  <span className="text-[10px] text-cyan-500 uppercase tracking-widest font-mono">
-                    Verified Scholar
-                  </span>
-                </div>
-              </button>
-              
-              <button 
-                onClick={logout}
-                className="mt-3 flex items-center gap-2 px-3 py-1.5 text-[10px] font-bold text-red-400/80 hover:text-red-400 uppercase tracking-[0.2em] transition-all hover:bg-red-500/5 rounded-lg border border-transparent hover:border-red-500/20"
-              >
-                <span className="text-xs">⎋</span> Terminate Session
-              </button>
-
-              <RecentChats />
-            </div>
-          )}
-        </div>
-
-        {/* Bottom Section: Compact Notes Input (Only for logged in) */}
-        {profile.isLoggedIn && (
-          <div className="w-full mt-auto mb-20 md:mb-24 flex flex-col pointer-events-auto">
-            <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800/80 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
-                  <span className="text-cyan-400">⚡</span> Quick Summarizer
-                </h3>
-              </div>
-              <p className="text-xs text-slate-400 mb-4 font-medium leading-relaxed">
-                Paste concepts you don't understand to get clear summaries &
-                auto-flashcards.
-              </p>
-
-              <NotesInput
-                variant="compact"
-                value={text}
-                onChange={handleTextInput}
-                onGenerate={handleGenerateSummary}
-                isLoading={loading}
-                difficulty={quizDifficulty}
-                setDifficulty={setQuizDifficulty}
-                questionCount={quizCount}
-                setQuestionCount={setQuizCount}
-              />
-
-              {error && (
-                <div className="mt-3 p-2 bg-red-950/40 border border-red-700/50 rounded-lg animate-fadeInUp">
-                  <p className="text-red-300 text-xs">
-                    <span className="font-bold">Error:</span> {error}
-                  </p>
-                </div>
-              )}
-            </div>
           </div>
-        )}
 
         {/* Progress bar */}
         {loading && (
@@ -370,31 +302,15 @@ export default function Home() {
         )}
       </aside>
 
-      {/* Left Sidebar (Calendar) - Only shown when logged in */}
-      {profile.isLoggedIn && (
-        <aside className="hidden lg:flex fixed left-0 top-0 z-30 h-[100vh] w-[260px] xl:w-[300px] flex-col p-4 xl:p-6 border-r border-slate-800/80 bg-[#070b14]/70 backdrop-blur-md justify-start pointer-events-none">
-          <div className="flex flex-col gap-1 mb-6 pointer-events-auto mt-4 px-2">
-            <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-              <span className="text-purple-500">🗓️</span> Roadmap
-            </h2>
-            <p className="text-xs text-slate-400">Interactive event timeline</p>
-          </div>
-          <InteractiveMiniCalendar />
-        </aside>
-      )}
+
 
       {/* Main Content Area */}
       <div
-        className={`flex-1 w-full flex justify-center h-full min-h-screen transition-all duration-500 ${
-          profile.isLoggedIn
-            ? "md:mr-[320px] lg:mr-[380px] lg:ml-[260px] xl:ml-[300px]"
-            : "md:ml-64 lg:ml-72"
-        }`}
+        className="flex-1 w-full flex justify-center h-full min-h-screen transition-all duration-500 md:ml-64 lg:ml-72"
       >
         <main className="relative w-full max-w-5xl px-4 sm:px-6 lg:px-8 py-8 md:py-12">
           {!summaryData ? (
             <div className="animate-fadeInUp">
-              {!profile.isLoggedIn ? (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                   {/* Input Section */}
                   <div className="lg:col-span-2 animate-slideInLeft">
@@ -499,20 +415,21 @@ export default function Home() {
                       </div>
 
                       <div className="mt-6 pt-6 border-t border-slate-700/50">
-                        <p className="text-xs text-slate-500 text-center">
-                          💡 Pro tip: Longer notes generate better summaries!
+                        <div className="text-center">
+                          <button 
+                            onClick={() => router.push("/onboarding")}
+                            className="btn btn-primary w-full py-4 text-lg font-black shadow-glow animate-pulse-subtle"
+                          >
+                            🚀 Start Journey
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-slate-500 text-center mt-4 uppercase tracking-[0.2em] font-bold">
+                          Personalized Roadmap Included
                         </p>
                       </div>
                     </div>
                   </div>
                 </div>
-              ) : (
-                <div className="space-y-12">
-                  <DashboardStats />
-                  <div className="divider" />
-                  <StudyPlanner />
-                </div>
-              )}
             </div>
           ) : (
             <div id="results-section" className="animate-fadeInUp relative">
@@ -569,18 +486,8 @@ export default function Home() {
         </main>
       </div>
 
-      {/* Conditionally provide dynamic screen context to the floating chatbot */}
       <ChatCloudButton
-        contextData={
-          profile.isLoggedIn ? {
-            todaysTasks: profile.events.flatMap(event => 
-               calculateEventSchedule(event).map((t: any) => ({ ...t, eventName: event.name, eventId: event.id }))
-            ),
-            summaryData,
-            quizAnswers,
-            quizSubmitted,
-          } : null
-        }
+        contextData={null}
       />
 
     </div>

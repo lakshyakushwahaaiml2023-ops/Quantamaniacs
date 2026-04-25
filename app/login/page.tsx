@@ -234,12 +234,28 @@ export default function StudyBuddyLanding() {
   const router = useRouter();
   const { updateProfile, logout } = useUser();
 
-  const handleLogin = () => {
-    updateProfile({
+  const handleLogin = async () => {
+    const defaultData = {
       isLoggedIn: true,
-      name: "Verified Scholar", // Mock name for the demo
+      name: "Verified Scholar", 
       studyLevel: "Elite",
-    });
+    };
+
+    try {
+      // Try to fetch existing user data if any
+      const res = await fetch(`/api/user/sync?name=${encodeURIComponent(defaultData.name)}`);
+      const data = await res.json();
+      
+      if (data.success && data.user) {
+        updateProfile({ ...data.user, isLoggedIn: true });
+      } else {
+        updateProfile(defaultData);
+      }
+    } catch (err) {
+      console.warn("DB fetch failed, falling back to local login", err);
+      updateProfile(defaultData);
+    }
+    
     router.push("/");
   };
 

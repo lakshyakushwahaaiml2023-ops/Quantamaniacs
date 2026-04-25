@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import twilio from "twilio";
-import fs from "fs";
-import path from "path";
+import connectDB from "@/config/db";
+import CallSession from "@/models/CallSession";
 
 export async function POST(req: Request) {
   try {
@@ -19,13 +19,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Twilio credentials missing" }, { status: 500 });
     }
 
-    // Save context for the webhook to use (no DB, using file as requested for localhost)
-    const contextPath = path.join(process.cwd(), "tmp", "call_context.json");
-    if (!fs.existsSync(path.join(process.cwd(), "tmp"))) {
-      fs.mkdirSync(path.join(process.cwd(), "tmp"));
-    }
-    
-    fs.writeFileSync(contextPath, JSON.stringify({ profile, eventId, taskId, taskName, reason }));
+    // Save context for the webhook to use in MongoDB
+    await connectDB();
+    const session = await CallSession.create({
+      profile,
+      eventId,
+      taskId,
+      taskName,
+      reason
+    });
 
     const client = twilio(accountSid, authToken);
 

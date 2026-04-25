@@ -38,7 +38,7 @@ type OnboardingData = {
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { updateProfile } = useUser();
+  const { profile, updateProfile } = useUser();
   const [step, setStep] = useState(1);
   const totalSteps = 14; // 13 questions + 1 summary
 
@@ -78,14 +78,29 @@ export default function OnboardingPage() {
     // Generate a profile summary (placeholder logic)
     const summary = `${data.year} ${data.stream} student specializing in ${data.branch}. Goal: ${data.careerGoal}. Focus skills: ${data.skills.join(", ")}.`;
     
-    // Update profile in context
+    // Update profile in context with the full onboarding data
     updateProfile({
+      isLoggedIn: true, // Auto-login after onboarding for demo purposes
+      name: profile.name || "Scholar",
+      stream: data.stream,
+      branch: data.branch,
+      year: data.year,
+      careerGoal: data.careerGoal,
+      targetSalary: data.targetSalary,
+      skills: data.skills,
+      skillLevel: data.skillLevel,
+      learningStyle: data.learningStyle,
+      studyTime: data.studyTime,
+      language: data.language,
+      access: data.access,
+      interestedIn: data.interestedIn,
+      biggestProblem: data.biggestProblem,
       studyLevel: data.year,
       course: `${data.stream} - ${data.branch}`,
     });
 
     // In a real app, we'd save this 'data' to a database or extended profile
-    router.push("/");
+    router.push("/dashboard");
   };
 
   const toggleMultiSelect = (key: keyof OnboardingData, value: string) => {

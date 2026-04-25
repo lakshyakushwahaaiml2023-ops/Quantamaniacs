@@ -23,8 +23,19 @@ export type UserProfile = {
   school: string;
   course: string;
   stream: string;
+  branch: string;
   year: string;
   semester: string;
+  careerGoal: string;
+  targetSalary: string;
+  skills: string[];
+  skillLevel: string;
+  learningStyle: string;
+  studyTime: string;
+  language: string;
+  access: string;
+  interestedIn: string[];
+  biggestProblem: string[];
   streak: number;
   weakTopics: string[];
   recommendedNextStep: string;
@@ -40,8 +51,19 @@ const defaultProfile: UserProfile = {
   school: "",
   course: "",
   stream: "",
+  branch: "",
   year: "",
   semester: "",
+  careerGoal: "",
+  targetSalary: "",
+  skills: [],
+  skillLevel: "",
+  learningStyle: "",
+  studyTime: "",
+  language: "",
+  access: "",
+  interestedIn: [],
+  biggestProblem: [],
   streak: 0,
   weakTopics: [],
   recommendedNextStep: "Complete your onboarding",
@@ -97,6 +119,30 @@ export function UserProvider({ children }: { children: ReactNode }) {
       } catch (e) {
         console.error("Failed to stringify user profile", e);
       }
+    }
+  }, [profile, isMounted]);
+
+  // Sync with MongoDB (Background)
+  useEffect(() => {
+    if (isMounted && profile.isLoggedIn && profile.name) {
+      const syncTimeout = setTimeout(async () => {
+        try {
+          console.log("=> Syncing with MongoDB...");
+          const res = await fetch("/api/user/sync", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(profile),
+          });
+          const data = await res.json();
+          if (data.success) {
+            console.log("=> MongoDB Sync Complete");
+          }
+        } catch (err) {
+          console.error("Failed to sync with MongoDB", err);
+        }
+      }, 2000); // Debounce sync by 2 seconds
+
+      return () => clearTimeout(syncTimeout);
     }
   }, [profile, isMounted]);
 

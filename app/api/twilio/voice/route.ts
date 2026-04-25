@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import twilio from "twilio";
-import fs from "fs";
-import path from "path";
+import connectDB from "@/config/db";
+import CallSession from "@/models/CallSession";
 
 const VoiceResponse = twilio.twiml.VoiceResponse;
 
@@ -12,21 +12,18 @@ export async function POST(req: Request) {
     const taskName = url.searchParams.get("taskName") || "your task";
     const reason = url.searchParams.get("reason") || "deadline";
 
-    // Load latest context to see if task status has changed since the call was triggered
-    const contextPath = path.join(process.cwd(), "tmp", "call_context.json");
+    // Load latest context from MongoDB
+    await connectDB();
+    const session = await CallSession.findOne({ eventId }).sort({ createdAt: -1 });
     let isCompleted = false;
     let taskId = "";
     
-    if (fs.existsSync(contextPath)) {
-      try {
-        const context = JSON.parse(fs.readFileSync(contextPath, "utf-8"));
-        taskId = context.taskId;
-        // Check if this specific task is in the completed list
-        if (context.profile && context.profile.completedTasks) {
-          isCompleted = context.profile.completedTasks.includes(taskId);
-        }
-      } catch (e) {
-        console.error("Context read error:", e);
+    if (session) {
+      taskId = session.taskId;
+      // Check if this specific task is in the completed list for the specific event
+      const event = session.profile.events.find((e: any) => e.id === session.eventId);
+      if (event && event.completedTasks) {
+        isCompleted = event.completedTasks.includes(taskId);
       }
     }
 

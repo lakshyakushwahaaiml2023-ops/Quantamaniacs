@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import twilio from "twilio";
 import Groq from "groq-sdk";
-import fs from "fs";
-import path from "path";
+import connectDB from "@/config/db";
+import CallSession from "@/models/CallSession";
+import TwilioUpdate from "@/models/TwilioUpdate";
+import User from "@/models/User";
 
 const apiKey = process.env.GROQ_API_KEY;
 const groq = new Groq({ apiKey });
@@ -25,14 +27,15 @@ export async function POST(req: Request) {
 
     console.log(`🎙️ Voice Agent heard: "${speechResult}"`);
 
-    // Load context (saved in the /call/ route)
-    const contextPath = path.join(process.cwd(), "tmp", "call_context.json");
-    if (!fs.existsSync(contextPath)) {
-       throw new Error("Missing call context file");
+    // Load context from MongoDB
+    await connectDB();
+    const session = await CallSession.findOne({ eventId: eventIdParam }).sort({ createdAt: -1 });
+    
+    if (!session) {
+       throw new Error("Missing call context session in DB");
     }
     
-    const context = JSON.parse(fs.readFileSync(contextPath, "utf8"));
-    const { profile, eventId, taskName } = context;
+    const { profile, eventId, taskName } = session;
 
     // Use Groq to generate a new task list
     const systemPrompt = `You are a world-class AI Study Planner agent.
@@ -66,9 +69,12 @@ export async function POST(req: Request) {
       const rawBlock = updateMatch[1].trim().replace(/```json/g, "").replace(/```/g, "");
       const newTasks = JSON.parse(rawBlock);
       
-      // Save for frontend to poll
-      const updatePath = path.join(process.cwd(), "tmp", "twilio_update.json");
-      fs.writeFileSync(updatePath, JSON.stringify({ eventId, newTasks, voiceCommand: speechResult }));
+      // Save for frontend to poll in MongoDB
+      await TwilioUpdate.create({
+        eventId,
+        newTasks,
+        voiceCommand: speechResult
+      });
     }
 
     const twiml = new twilio.twiml.VoiceResponse();

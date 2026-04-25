@@ -180,14 +180,25 @@ code, pre {
   }
 }
 
-/* Shimmer effect */
-@keyframes shimmer {
-  0% {
-    background-position: -1000px 0;
-  }
-  100% {
-    background-position: 1000px 0;
-  }
+/* Instagram-style Avatar Shimmer */
+@keyframes instaShimmer {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animate-shimmer {
+  background-size: 200% 200%;
+  animation: instaShimmer 2s linear infinite;
+}
+
+@keyframes successPulse {
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.1); }
+}
+
+.animate-successPulse {
+  animation: successPulse 2s ease-in-out infinite;
 }
 
 /* Typing cursor */
@@ -331,12 +342,6 @@ code, pre {
   animation: glowPulse 2s ease-in-out infinite;
   will-change: transform, box-shadow;
   transform: translateZ(0);
-}
-
-.animate-shimmer {
-  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.2) 50%, transparent 100%);
-  background-size: 1000px 100%;
-  animation: shimmer 2s infinite;
 }
 
 .animate-spin-slow {
