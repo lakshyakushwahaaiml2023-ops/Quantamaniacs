@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["mongoose", "bcryptjs"],
+  serverExternalPackages: ["bcryptjs", "@prisma/client"],
   webpack: (config, { isServer }) => {
     if (!isServer) {
       // Don't resolve Node.js-only modules on the client-side
