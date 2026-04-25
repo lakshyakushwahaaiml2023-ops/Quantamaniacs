@@ -121,12 +121,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }, [profile, isMounted]);
 
-  // Sync with PostgreSQL (Background)
+  // Sync with Database (Background)
   useEffect(() => {
     if (isMounted && profile.isLoggedIn && profile.name) {
       const syncTimeout = setTimeout(async () => {
         try {
-          console.log("=> Syncing with PostgreSQL...");
+          console.log("=> Syncing with Database...");
           const res = await fetch("/api/user/sync", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -134,7 +134,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
           });
           
           if (!res.ok) {
-            console.error(`=> Sync failed with status: ${res.status}`);
+            let errorMsg = `Sync failed with status: ${res.status}`;
+            try {
+              const errorData = await res.json();
+              if (errorData.error) errorMsg += ` - ${errorData.error}`;
+            } catch (e) {
+              // Not a JSON response
+            }
+            console.error(`=> ${errorMsg}`);
             return;
           }
 
@@ -142,13 +149,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
           if (contentType && contentType.includes("application/json")) {
             const data = await res.json();
             if (data.success) {
-              console.log("=> PostgreSQL Sync Complete");
+              console.log("=> Database Sync Complete");
             }
           } else {
              console.error("=> Sync Error: Server returned non-JSON response");
           }
         } catch (err) {
-          console.error("Failed to sync with PostgreSQL", err);
+          console.error("Failed to sync with Database", err);
         }
       }, 2000); // Debounce sync by 2 seconds
 

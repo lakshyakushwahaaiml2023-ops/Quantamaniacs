@@ -12,11 +12,12 @@ export async function POST(req: Request) {
     // Split data into User-related and Profile-related
     // For this demo, we use the name as the unique identifier
     
+    // 1. Sanitize unique fields to avoid constraint violations on empty strings
     const userUpdate = {
       name: rawData.name,
-      email: rawData.email,
+      email: rawData.email && rawData.email.trim() !== "" ? rawData.email : null,
       avatarUrl: rawData.avatarUrl,
-      clerkId: rawData.clerkId,
+      clerkId: rawData.clerkId && rawData.clerkId.trim() !== "" ? rawData.clerkId : null,
     };
 
     const profileUpdate = {
@@ -32,18 +33,18 @@ export async function POST(req: Request) {
       learningStyle: rawData.learningStyle,
       language: rawData.language || "English",
       access: rawData.access,
-      streak: rawData.streak || 0,
-      xpPoints: rawData.xpPoints || 0,
-      level: rawData.level || 1,
-      // SQLite: Join arrays to strings
-      interestedIn: Array.isArray(rawData.interestedIn) ? rawData.interestedIn.join(",") : "",
-      biggestProblem: Array.isArray(rawData.biggestProblem) ? rawData.biggestProblem.join(",") : "",
+      streak: parseInt(rawData.streak) || 0,
+      xpPoints: parseInt(rawData.xpPoints) || 0,
+      level: parseInt(rawData.level) || 1,
+      interestedIn: Array.isArray(rawData.interestedIn) ? rawData.interestedIn.filter(Boolean).join(",") : "",
+      biggestProblem: Array.isArray(rawData.biggestProblem) ? rawData.biggestProblem.filter(Boolean).join(",") : "",
       careerRoadmapJson: rawData.careerRoadmap ? JSON.stringify(rawData.careerRoadmap) : null,
     };
 
     // Use a transaction to update User, Profile, Skills, and Events
     const updatedUser = await prisma.$transaction(async (tx) => {
       // 1. Upsert User and Profile
+      // For 1-to-1 relations in Prisma, nested upsert inside update is standard
       const u = await tx.user.upsert({
         where: { name: rawData.name },
         update: {
@@ -63,37 +64,61 @@ export async function POST(req: Request) {
         }
       });
 
-      // 2. Sync Skills (Replace all to match frontend)
+      // 2. Sync Skills (Deduplicate to avoid unique constraint violations)
       if (Array.isArray(rawData.skills)) {
         await tx.skill.deleteMany({ where: { userId: u.id } });
-        // Frontend skills might be objects or just names depending on where they come from
-        // Let's handle both
-        const skillsToCreate = rawData.skills.map((s: any) => {
-          if (typeof s === 'string') return { userId: u.id, skillName: s, proficiencyPct: 50 };
-          return {
-            userId: u.id,
-            skillName: s.skillName || s.name || "Skill",
-            proficiencyPct: s.proficiencyPct || 0,
-            source: s.source || "manual"
-          };
+        
+        const skillMap = new Map();
+        rawData.skills.forEach((s: any) => {
+          const name = (typeof s === 'string' ? s : (s.skillName || s.name || "Skill")).trim();
+          if (name && !skillMap.has(name)) {
+            skillMap.set(name, {
+              userId: u.id,
+              skillName: name,
+              performancePct: typeof s === 'object' ? (s.proficiencyPct || s.performancePct || 50) : 50,
+              source: typeof s === 'object' ? (s.source || "manual") : "manual"
+            });
+          }
         });
+
+        const skillsToCreate = Array.from(skillMap.values());
         if (skillsToCreate.length > 0) {
-          await tx.skill.createMany({ data: skillsToCreate });
+          // Note: Using individual creates if createMany has issues with some drivers, 
+          // but modern SQLite/PostgreSQL supports it fine.
+          await tx.skill.createMany({ 
+            data: skillsToCreate.map(s => ({
+              userId: s.userId,
+              skillName: s.skillName,
+              proficiencyPct: s.performancePct,
+              source: s.source
+            }))
+          });
         }
       }
 
-      // 3. Sync Events (Replace all to match frontend)
+      // 3. Sync Events
       if (Array.isArray(rawData.events)) {
         await tx.event.deleteMany({ where: { userId: u.id } });
-        const eventsToCreate = rawData.events.map((e: any) => ({
-          userId: u.id,
-          name: e.name,
-          subject: e.subject || e.name,
-          examDate: new Date(e.date || e.examDate || new Date()),
-          dailyHours: e.dailyHours || 2.0,
-          syllabus: e.syllabus || "",
-          plan: typeof e.plan === 'object' ? JSON.stringify(e.plan) : e.plan
-        }));
+        const eventsToCreate = rawData.events
+          .filter((e: any) => e && e.name)
+          .map((e: any) => {
+            let examDate = new Date();
+            try {
+              const d = new Date(e.date || e.examDate || Date.now());
+              if (!isNaN(d.getTime())) examDate = d;
+            } catch (err) { /* ignore and use now */ }
+
+            return {
+              userId: u.id,
+              name: e.name,
+              subject: e.subject || e.name,
+              examDate: examDate,
+              dailyHours: parseFloat(e.dailyHours) || 2.0,
+              syllabus: e.syllabus || "",
+              plan: e.plan ? (typeof e.plan === 'object' ? JSON.stringify(e.plan) : String(e.plan)) : null
+            };
+          });
+
         if (eventsToCreate.length > 0) {
           await tx.event.createMany({ data: eventsToCreate });
         }
@@ -104,10 +129,12 @@ export async function POST(req: Request) {
         include: {
           profile: true,
           skills: true,
-          achievements: true,
           events: true,
+          achievements: true,
         }
       });
+    }, {
+      timeout: 10000 // Increase timeout for complex syncs
     });
 
     if (!updatedUser) throw new Error("Sync failed to return user");
@@ -117,14 +144,22 @@ export async function POST(req: Request) {
     const mergedUser = {
       ...updatedUser,
       ...(updatedUser.profile || {}),
-      interestedIn: updatedUser.profile?.interestedIn ? updatedUser.profile.interestedIn.split(",") : [],
-      biggestProblem: updatedUser.profile?.biggestProblem ? updatedUser.profile.biggestProblem.split(",") : [],
+      interestedIn: updatedUser.profile?.interestedIn ? updatedUser.profile.interestedIn.split(",").filter(Boolean) : [],
+      biggestProblem: updatedUser.profile?.biggestProblem ? updatedUser.profile.biggestProblem.split(",").filter(Boolean) : [],
       careerRoadmap: updatedUser.profile?.careerRoadmapJson ? JSON.parse(updatedUser.profile.careerRoadmapJson) : null,
-      events: updatedUser.events?.map(ev => ({
-        ...ev,
-        plan: typeof ev.plan === 'string' ? JSON.parse(ev.plan) : ev.plan,
-        date: ev.examDate // Frontend often uses .date for Event type
-      })) || [],
+      events: updatedUser.events?.map(ev => {
+        let plan = ev.plan;
+        if (typeof plan === 'string' && plan.trim() !== "") {
+          try {
+            plan = JSON.parse(plan);
+          } catch (e) { /* keep as string if parse fails */ }
+        }
+        return {
+          ...ev,
+          plan,
+          date: ev.examDate
+        };
+      }) || [],
       skills: updatedUser.skills || []
     };
 
@@ -163,14 +198,22 @@ export async function GET(req: Request) {
       const mergedUser = {
         ...user,
         ...(user.profile || {}),
-        interestedIn: user.profile?.interestedIn ? user.profile.interestedIn.split(",") : [],
-        biggestProblem: user.profile?.biggestProblem ? user.profile.biggestProblem.split(",") : [],
+        interestedIn: user.profile?.interestedIn ? user.profile.interestedIn.split(",").filter(Boolean) : [],
+        biggestProblem: user.profile?.biggestProblem ? user.profile.biggestProblem.split(",").filter(Boolean) : [],
         careerRoadmap: user.profile?.careerRoadmapJson ? JSON.parse(user.profile.careerRoadmapJson) : null,
-        events: user.events?.map(ev => ({
-          ...ev,
-          plan: typeof ev.plan === 'string' ? JSON.parse(ev.plan) : ev.plan,
-          date: ev.examDate
-        })) || [],
+        events: user.events?.map(ev => {
+          let plan = ev.plan;
+          if (typeof plan === 'string' && plan.trim() !== "") {
+            try {
+              plan = JSON.parse(plan);
+            } catch (e) { /* keep as string if parse fails */ }
+          }
+          return {
+            ...ev,
+            plan,
+            date: ev.examDate
+          };
+        }) || [],
         skills: user.skills || []
       };
   

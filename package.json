@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build --webpack",
+    "build": "prisma generate && prisma db push --accept-data-loss && next build --webpack",
     "start": "next start",
     "tunnel": "node server.js",
     "lint": "eslint",
@@ -23,7 +23,6 @@
     "next": "16.2.1",
     "ngrok": "^5.0.0-beta.2",
     "pdfjs-dist": "^5.5.207",
-    "pg": "^8.20.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-hook-form": "^7.72.0",
